@@ -377,8 +377,9 @@ export class TikTokLiveConnection extends (EventEmitter as new () => TypedEventE
         // Method 1 (HTML)
         try {
             const roomInfo = await this.webClient.fetchRoomInfoFromHtml({ uniqueId: this.uniqueId });
-            if (roomInfo?.liveRoomUserInfo?.liveRoom?.status === undefined) throw new Error('Failed to extract status from HTML.');
-            return isOnline(roomInfo?.liveRoomUserInfo?.liveRoom?.status);
+            const status = roomInfo?.liveRoom?.status ?? roomInfo?.liveRoomUserInfo?.liveRoom?.status;
+            if (status === undefined) throw new Error('Failed to extract status from HTML.');
+            return isOnline(status);
         } catch (ex) {
             this.handleError(ex, 'Failed to retrieve room info for live status from main page, falling back to API source...');
             errors.push(ex);
@@ -421,18 +422,46 @@ export class TikTokLiveConnection extends (EventEmitter as new () => TypedEventE
     public async waitUntilLive(seconds: number = 60): Promise<void> {
         seconds = Math.max(30, seconds);
 
-        return new Promise(async (resolve) => {
-            const fetchIsLive = async () => {
-                const isLive = await this.fetchIsLive();
+        return new Promise((resolve, reject) => {
+            let interval: ReturnType<typeof setInterval> | null = null;
+            let settled = false;
+            let polling = false;
 
-                if (isLive) {
-                    clearInterval(interval);
-                    resolve();
+            const settleResolve = () => {
+                if (settled) return;
+                settled = true;
+                if (interval) clearInterval(interval);
+                resolve();
+            };
+
+            const settleReject = (err: any) => {
+                if (settled) return;
+                settled = true;
+                if (interval) clearInterval(interval);
+                reject(err);
+            };
+
+            const poll = async () => {
+                if (settled || polling) return;
+                polling = true;
+
+                try {
+                    const isLive = await this.fetchIsLive();
+                    if (isLive) {
+                        settleResolve();
+                    }
+                } catch (err) {
+                    settleReject(err);
+                } finally {
+                    polling = false;
                 }
             };
 
-            const interval = setInterval(async () => fetchIsLive(), seconds * 1000);
-            await fetchIsLive();
+            interval = setInterval(() => {
+                void poll();
+            }, seconds * 1000);
+
+            void poll();
         });
 
     }

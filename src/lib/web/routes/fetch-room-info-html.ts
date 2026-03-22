@@ -27,7 +27,7 @@ export class FetchRoomInfoFromHtmlRoute extends Route<FetchRoomInfoFromHtmlRoute
             throw new Error('Failed to parse SIGI_STATE into JSON. Are you captcha-blocked by TikTok?');
         }
 
-        const liveRoom = sigiState?.LiveRoom.liveRoomUserInfo;
+        const liveRoom = sigiState?.LiveRoom?.liveRoomUserInfo;
 
         if (!liveRoom) {
             throw new Error('Failed to extract the LiveRoom object from SIGI_STATE.');
