@@ -11,7 +11,8 @@ export class InvalidUniqueIdError extends Error {
 
 export class FetchIsLiveError extends Error {
     constructor(public readonly errors: Error[], ...args: any[]) {
-        super();
+        super(...args);
+        this.name = 'FetchIsLiveError';
     }
 }
 

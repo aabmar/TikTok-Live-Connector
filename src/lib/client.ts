@@ -320,10 +320,14 @@ export class TikTokLiveConnection extends (EventEmitter as new () => TypedEventE
         let errors: any[] = [];
         uniqueId ||= this.uniqueId;
 
-// Method 1 (HTML Fallback)
+        // Method 1 (HTML Fallback)
         try {
             const roomInfo = await this.webClient.fetchRoomInfoFromHtml({ uniqueId: uniqueId });
-            const roomId = roomInfo.user.roomId;
+            const roomId = roomInfo?.user?.roomId
+                ?? roomInfo?.liveRoom?.roomId
+                ?? roomInfo?.roomId
+                ?? roomInfo?.liveRoomUserInfo?.user?.roomId
+                ?? roomInfo?.liveRoomUserInfo?.liveRoom?.roomId;
             if (!roomId) throw new Error('Failed to extract Room ID from HTML.');
             return roomId;
         } catch (ex) {
@@ -377,7 +381,10 @@ export class TikTokLiveConnection extends (EventEmitter as new () => TypedEventE
         // Method 1 (HTML)
         try {
             const roomInfo = await this.webClient.fetchRoomInfoFromHtml({ uniqueId: this.uniqueId });
-            const status = roomInfo?.liveRoom?.status ?? roomInfo?.liveRoomUserInfo?.liveRoom?.status;
+            const status = roomInfo?.liveRoom?.status
+                ?? roomInfo?.liveRoomUserInfo?.liveRoom?.status
+                ?? roomInfo?.user?.status
+                ?? roomInfo?.liveRoomUserInfo?.user?.status;
             if (status === undefined) throw new Error('Failed to extract status from HTML.');
             return isOnline(status);
         } catch (ex) {

@@ -119,6 +119,9 @@ export default class WebcastHttpClient {
         }
 
 
+        console.log(`[tiktok-live-connector] ${method.toUpperCase()} ${url}`);
+
+
         // Execute the request
         return this.axiosInstance.request(
             {
