@@ -31,6 +31,7 @@ export type TikTokLiveConnectionOptions = TikTokLiveConnectionBundledOptions & {
     signApiKey: string | null;
     connectWithUniqueId: boolean;
     disableEulerFallbacks: boolean;
+    allowEulerSignedWs: boolean;
 
     webClientParams: Record<string, string>;
     webClientHeaders: Record<string, string>;

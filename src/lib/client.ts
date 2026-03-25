@@ -74,7 +74,8 @@ export class TikTokLiveConnection extends (EventEmitter as new () => TypedEventE
      * @param {object} [options[].websocketOptions={}] Custom request options for websocket.client. Here you can specify an `agent` to use a proxy and a `timeout` value for example.
      * @param {boolean} [options[].connectWithUniqueId=false] Connect to the live stream using the unique ID instead of the room ID. If `true`, the room ID will be fetched from the TikTok API.
     * @param {boolean} [options[].logFetchFallbackErrors=false] Log errors when falling back to the API or Euler source
-    * @param {function} [options[].signedWebSocketProvider] Custom function to fetch the signed WebSocket URL. If not specified, Euler is used unless `disableEulerFallbacks` is `true`.
+    * @param {boolean} [options[].allowEulerSignedWs=true] Allow the default Euler-backed signed websocket bootstrap provider.
+    * @param {function} [options[].signedWebSocketProvider] Custom function to fetch the signed WebSocket URL. If not specified, Euler is used unless `allowEulerSignedWs` is `false`.
      * @param {EulerSigner} [signer] TikTok Signer instance. If not provided, a new instance will be created using the provided options
      */
     constructor(
@@ -98,6 +99,7 @@ export class TikTokLiveConnection extends (EventEmitter as new () => TypedEventE
             oauthToken: null,
             signApiKey: null,
             disableEulerFallbacks: false,
+            allowEulerSignedWs: true,
 
             // Override Http client params
             webClientParams: {},
@@ -258,12 +260,12 @@ export class TikTokLiveConnection extends (EventEmitter as new () => TypedEventE
 
         // <Required> Fetch initial room info. Let the user specify their own backend for signing.
         const signedWebSocketProvider = this.options.signedWebSocketProvider
-            || (!this.options.disableEulerFallbacks ? this.webClient.fetchSignedWebSocketFromEuler : undefined);
+            || (this.options.allowEulerSignedWs ? this.webClient.fetchSignedWebSocketFromEuler : undefined);
 
         if (!signedWebSocketProvider) {
             throw new MissingSignedWebSocketProviderError(
-                'A signed websocket provider is required to connect when disableEulerFallbacks is true. '
-                + 'Provide options.signedWebSocketProvider or enable Euler fallbacks.'
+                'A signed websocket provider is required to connect when allowEulerSignedWs is false. '
+                + 'Provide options.signedWebSocketProvider or enable Euler signed websocket support.'
             );
         }
 
