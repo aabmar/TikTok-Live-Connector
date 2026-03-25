@@ -159,3 +159,10 @@ export class AuthenticatedWebSocketConnectionError extends SignAPIError {
     }
 }
 
+export class MissingSignedWebSocketProviderError extends ConnectError {
+    constructor(message: string) {
+        super(message);
+        this.name = 'MissingSignedWebSocketProviderError';
+    }
+}
+
