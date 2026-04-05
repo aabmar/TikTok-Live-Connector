@@ -54,6 +54,7 @@ export class TikTokLiveConnection extends (EventEmitter as new () => TypedEventE
     protected _roomInfo: RoomInfo | null = null;
     protected _availableGifts: Record<any, any> | null = null;
     protected _connectState: ConnectState = ConnectState.DISCONNECTED;
+    protected waitUntilLiveAbortController: AbortController | null = null;
     public readonly options: TikTokLiveConnectionOptions;
 
     /**
@@ -320,6 +321,9 @@ export class TikTokLiveConnection extends (EventEmitter as new () => TypedEventE
      * Disconnects the connection to the live stream
      */
     async disconnect(): Promise<void> {
+        this.waitUntilLiveAbortController?.abort();
+        this.waitUntilLiveAbortController = null;
+
         if (this.isConnected) {
             this.wsClient?.close();
         }
@@ -441,49 +445,44 @@ export class TikTokLiveConnection extends (EventEmitter as new () => TypedEventE
      */
     public async waitUntilLive(seconds: number = 60): Promise<void> {
         seconds = Math.max(30, seconds);
+        this.waitUntilLiveAbortController?.abort();
+        const abortController = new AbortController();
+        this.waitUntilLiveAbortController = abortController;
 
-        return new Promise((resolve, reject) => {
-            let interval: ReturnType<typeof setInterval> | null = null;
-            let settled = false;
-            let polling = false;
+        try {
+            while (!abortController.signal.aborted) {
+                const isLive = await this.fetchIsLive();
+                if (abortController.signal.aborted || isLive) {
+                    return;
+                }
 
-            const settleResolve = () => {
-                if (settled) return;
-                settled = true;
-                if (interval) clearInterval(interval);
+                await this.waitForTimeoutOrAbort(seconds * 1000, abortController.signal);
+            }
+        } finally {
+            if (this.waitUntilLiveAbortController === abortController) {
+                this.waitUntilLiveAbortController = null;
+            }
+        }
+    }
+
+    protected async waitForTimeoutOrAbort(ms: number, signal: AbortSignal): Promise<void> {
+        if (signal.aborted) {
+            return;
+        }
+
+        return new Promise((resolve) => {
+            const onAbort = () => {
+                clearTimeout(timeout);
                 resolve();
             };
 
-            const settleReject = (err: any) => {
-                if (settled) return;
-                settled = true;
-                if (interval) clearInterval(interval);
-                reject(err);
-            };
+            const timeout = setTimeout(() => {
+                signal.removeEventListener('abort', onAbort);
+                resolve();
+            }, ms);
 
-            const poll = async () => {
-                if (settled || polling) return;
-                polling = true;
-
-                try {
-                    const isLive = await this.fetchIsLive();
-                    if (isLive) {
-                        settleResolve();
-                    }
-                } catch (err) {
-                    settleReject(err);
-                } finally {
-                    polling = false;
-                }
-            };
-
-            interval = setInterval(() => {
-                void poll();
-            }, seconds * 1000);
-
-            void poll();
+            signal.addEventListener('abort', onAbort, { once: true });
         });
-
     }
 
     /**
